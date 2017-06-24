@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>打气球</title>
+	<style>
+		body,html{
+			width:100%;
+			height:100%;
+		}
+		body{
+			position:relative;
+			overflow:hidden;
+		}
+		.ball{
+			width:96px;
+			height:123px;
+			background-image:url(img/balloon.png);
+			position:absolute;
+		}
+		.gunBox{
+			height:96px;
+			width:96px;
+			background:url(img/gun.png) no-repeat center center;
+			position:absolute;
+			z-index:2;
+			display:none;
+			cursor:none;
+		}
+		.blow{
+			animation:blow 0.5s forwards;
+		}
+		@keyframes blow{
+			0%{
+				transform:scale(1);
+			}
+			100%{
+				transform:scale(5);
+				opacity:0;
+			}
+		}
+	</style>
+</head>
+<body>
+	<audio src="img/gun.mp3" id="voice"></audio>
+	<script>
+		//创建一个函数生成一个m~n的随机数
+		function ranNum(m,n){
+			return Math.floor( Math.random()*(n-m+1) ) + m ;
+		}
+		
+		for(var i = 0;i<100;i++){
+			ranNum(0,10);
+		}
+		//背景对象
+		function Background(){
+			this.src = 'url(img/bg.jpg)';
+			this.init = function(){
+				document.body.style.background = this.src+' no-repeat center center';
+				document.body.style.backgroundSize = '100% 100%';
+			}
+		}
+		//创建云彩对象
+		function Cloud(){
+			this.speed = 5;
+			this.clo = document.createElement('div');
+			this.height = ranNum(50,80);
+			this.width = this.height*2;
+			this.clo.style.width = this.width + 'px';
+			this.clo.style.height = this.height + 'px';
+			this.clo.style.position = 'absolute';
+			this.clo.style.backgroundImage = 'url(img/cloud.png)';
+			this.clo.style.backgroundRepeat = 'no-repeat';
+			this.clo.style.backgroundSize = "100%";
+			document.body.appendChild(this.clo);
+			this.clo.style.top = ranNum(0,100)+'px';
+			this.direction = true;
+			this.clo.style.left = ranNum(0,document.documentElement.offsetWidth-this.width)+'px';
+		}
+		Cloud.prototype.move=function(){
+			var oldleft = this.clo.offsetLeft;
+			//console.info(oldleft);
+			var newLeft;
+			
+			if(this.direction == true){
+				if(oldleft<=0){
+					newLeft = oldleft + this.speed;
+					this.direction = false;
+				}else{
+					newLeft = oldleft - this.speed;
+					console.info('左移');
+				}
+			}else{
+				if(oldleft>=document.documentElement.offsetWidth-this.width){
+					this.direction =true;
+					newLeft = oldleft - this.speed;
+				}else{
+					newLeft = oldleft + this.speed;
+				}
+			}
+			this.clo.style.left = newLeft +"px";
+		}
+		//创建气球对象
+		function Balloon(){
+			this.ball = document.createElement('div');
+			this.ball.className = 'ball';
+			document.body.appendChild(this.ball);
+			this.reborn();
+			var othis = this;
+			this.ball.addEventListener('animationend',function(){
+				//console.info(this);
+				this.className = 'ball';
+				othis.reborn();
+			})
+		}
+		Balloon.prototype.reborn = function(){
+			this.ball.style.left = ranNum(0,document.documentElement.offsetWidth - this.ball.offsetWidth) + 'px';
+			this.ball.style.top = ranNum(document.documentElement.offsetHeight-200,document.documentElement.offsetHeight-100) + 'px';
+			this.mark = ranNum(1,8);
+			this.ball.style.backgroundPosition = -(this.mark-1)%4*96+'px '+ -Math.floor(this.mark/5)*123+'px';
+			this.speed = this.mark*1.2;
+		}
+		Balloon.prototype.move = function(){
+			var oldTop = this.ball.offsetTop ;
+			var newTop = oldTop - this.speed ;
+			this.ball.style.top = newTop+'px';
+			if(oldTop<=-123){
+				this.reborn();
+			}
+			
+		}
+		Balloon.prototype.goDie = function(){
+			this.ball.className = 'ball blow';
+			score.update(this.mark);
+		}
+		//创建枪对象
+		function gun(){
+			this.gunBox = document.createElement('div');
+			this.gunBox.className = 'gunBox' ;
+			document.body.appendChild(this.gunBox);
+			var othis = this;
+			this.move = function(){
+				document.addEventListener('mousemove',function(e){
+				othis.gunBox.style.left = e.clientX - 48+'px';
+				othis.gunBox.style.top = e.clientY - 48+'px';
+				othis.gunBox.style.display = "block";
+			})
+			}
+			
+		}
+		//创建分数对象
+		var score = {
+			scoreBox:document.createElement('div'),
+			mark:0,
+			init:function(){
+				this.scoreBox.style.position = 'absolute';
+				this.update(0);
+				document.body.appendChild(this.scoreBox);
+			},
+			update:function(s){
+				this.mark += s;
+				this.scoreBox.innerHTML = this.mark;
+			}
+
+
+		}
+		//创建总控制对象
+		game = {
+			frameIndex:0,
+			ballNumber:5,
+			cloudNumber:3,
+			currentBallNumber:0,
+			actor:[],
+			start:function(){
+				// for(var i = 0;i<this.ballNumber;i++){
+					//new Balloon();
+				// 	this.actor.push(new Balloon());
+				// }
+				//new gun();
+				new Background().init();
+				score.init();
+				for(var k = 0;k<this.cloudNumber;k++){
+					//new Balloon();
+					this.actor.push(new Cloud());
+				}
+				this.actor.push( new gun() );
+				var othis = this;
+				setInterval(function(){
+					//让小球每0.5秒出现一个
+					othis.frameIndex++;
+					if(othis.frameIndex%10 == 0 && othis.currentBallNumber<othis.ballNumber){
+						othis.currentBallNumber++;
+						othis.actor.push(new Balloon());
+					}
+					for(var j=0;j<othis.actor.length;j++){
+						othis.actor[j].move();
+					}
+				},50)
+				document.addEventListener('click',function(e){
+					var voice = document.getElementById('voice');
+					voice.currentTime = voice.duration;
+					voice.play();
+					for( var i=0;i<othis.actor.length;i++ ){
+						if(othis.actor[i].constructor == Balloon){
+							if(Math.pow(e.clientX-othis.actor[i].ball.offsetLeft-48,2)+Math.pow(e.clientY-othis.actor[i].ball.offsetTop-48,2)<=Math.pow(48,2)){
+								//console.info('被击中了');
+								othis.actor[i].goDie();
+								
+							}
+						}
+					}
+				})
+			}
+			
+		}
+		game.start();
+		
+	</script>
+</body>
+</html>
